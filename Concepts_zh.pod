@@ -1,0 +1,252 @@
+﻿package Moose::Manual::Concepts;
+
+# ABSTRACT: Moose OO concepts
+
+
+
+=pod
+
+=head1 NAME
+
+Moose::Manual::Concepts - Moose OO concepts
+
+=head1 VERSION
+
+version 2.0401
+
+=head1 MOOSE CONCEPTS (VS "OLD SCHOOL" Perl)
+
+在过去，想要用perl写面向对象风格的代码，就需要借助于包和bless之类的操作，而事实上perl5的对象实际也只是一个package，只是牵强的被认为perl也能面向对象,我们要再perl5里面写oop的代码必须要引用里面存储自己所要的对象，方法，构造器,但是moose出现之后这一切变得不一样了.
+
+我们的meta-object 协议(简称MOP）提供了对moose的面向对象概念提供很好的自省功能,并且moose为了大家能够轻便编写oop风格的代码,提供了很多类如has之类的语法糖.Moose同样提供了独特roles（角色)，方法修改器method modifiers，以及委托方法delegation.
+
+这些概念在过去都是没有的，你会看到，在moose的世界里，面向对象是如此亲切和简单.
+
+=head2 Class
+
+当你敲入"use Moose"的时候，意味着你已经让你的package成为了一个类.最简单的，你可以什么都不写，它也是一个类.它可以包括roles，方法修改或者更多.
+
+一个class 可以有I<has> 0或者多个属性.
+
+一个class可以'has' 0个或者多个 B<methods>方法
+
+一个class可以有0个或者多个父类.子类可以继承父类.
+
+一个类可以有0个或者多个B<method modifiers>.这些修改器可以让你再构造一些你自己个性化的方法更为方便,比如实现自己的参数验证.
+
+一个class通过<does>来实现0个或者多个role。
+
+一个class含有一个构造函数和析构函数.Moose已经为你准备好这些方法，一般情况下我们不需要再去写自己的new函数和destory函数，有时候你自己写的new函数会导致你丧失了moose提供的很多特性.
+
+B<constructor>接受key-value形式的参数来实例化一个对象.
+
+一个class有一个元类.这个元类包括了B<meta-attributes>,B<meta-methods>,B<meta-roles>,从元类你可以知道一切关于class里面method，attribute的信息.
+
+下面来看一个简单的例子
+
+  package Person;
+
+  use Moose;
+  # 现在，你已经创建了一个类了.
+
+=head2 Attribute
+
+一个类可以定义很多属性，moose还提供了很多可以个性化属性的特性。比如可读和可写的权限，属性的类型B<type>,方法访问器,委托方法B<delegation>,或者默认值等等更多设定.
+
+
+需要注意的是，属性并不是方法，但是确可以通过很多方法来构造一个属性.最小限度,一个正常的属性应该有一个方法能够访问到,再往外拓展，一个属性需要有一个可以改变它的可写的方法,以及一个清除这个属性的方法,它们分别对应的设置是reader,writer,clearer.我想这些应该在之前的文章可以看到.
+
+一个属性还可以定义B<delegations>,它定义的是映射的其他类的方法.
+
+Moose默认存储这些属性在对象实例里面,它是一个hash的引用,这些属性的设置是通过moose内部以及定义好的方法来实现的.
+
+一个属性是一个类的成员.例如一个人有名字，名字就是人这个类的属性.用户有密码和登录时间这些属性.
+
+  has 'first_name' => (
+      is  => 'rw',
+      isa => 'Str',
+  );
+
+=head2 Method
+
+方法就非常直观了，其实也就是一些函数，只是在面向对象里面我们叫做方法.
+
+方法的命名应该很明确，例如login的方法就是用来登录的.
+
+  sub login { ... }
+
+=head2 Role
+
+role通过class的dose关键字来实现.我们也可以说一个类扮演着某个角色.例如一个类可以被终止,一个类可以排序,一个role可以用来把一些不相干的class糅合在一起,例如一个box -> 'has a color'.
+
+一个role有0个或者多个<attributes>
+
+一个role有0或者多个<methods>
+
+一个role有0个或者多个B<method modifiers>
+
+一个role有0个或者多个B<required methods>
+
+B<required method>是指这个role实现的接口.即这个role的功能.
+
+一个role含有0个或者多个B<excluded roles>.
+
+
+Roles总是结合类和其他role来使用.当一个类dose了一个role，这个role的属性被平滑的过度到了这个类里面,某种程度上,role解决了一些多重继承的问题.
+
+Role如果你一定要一个其他语言类似的定义的名词的话，那么java里面的interface和它有点类似.
+
+  package Breakable;
+
+  use Moose::Role;
+
+  requires 'break';
+
+  has 'is_broken' => (
+      is  => 'rw',
+      isa => 'Bool',
+  );
+
+  after 'break' => sub {
+      my $self = shift;
+
+      $self->is_broken(1);
+  };
+
+=head2 Method modifiers
+
+方法修改器,可以看做对方法的修饰，我们通过before，around,after在方法的不同调用时期,来实现对一个一般方法来实现你自己的需求.例如在登录之前干点什么，登录之后又干点什么,登录过程中干点什么.
+
+  before 'login' => sub {
+      my $self = shift;
+      my $pw   = shift;
+
+      warn "Called login() with $pw\n";
+  };
+
+=head2 Type
+
+我们都知道perl是无类型的语言，Moose的类型系统补全了这一点，我们可以看到Moose内部是有提供了Str,Num,Bool,Hashref等等这些类型.
+
+以此类推，所以你定义的class都可以有自己的类型.
+
+例如定义了一个C<PosInt>的类型对象,在对对象传递和访问的时候我们只接受正整数类型.
+
+=head2 Delegation
+
+Delegation委托方法是Moose定义的一种可以让你通过访问属性调用某些方法的语法,详细内容之前已经翻译过了.
+
+=head2 Constructor
+
+Moose通过构造器为你的对象创建一个对象实例，在传统的perl5 oop里面我们需要bless一个引用，书写自己的new函数来实现.但是在Moose的世界里你再也不需要了.
+
+Moose会自动为你创建一个new方法，当然这有一点点问题就是这让所有的类的创建对象的方法都是new了.
+
+有的时候你可能需要在moose创建对象之后做定义一些东西，moose提供了C<BUILD()>方法帮助你实现你的需求.在对象创建完成之后，moose会为你调用你写号的BUILD方法.
+
+=head2 Destructor
+
+在perl5里面我们都知道DESTROY方法是用来垃圾回收的,在Moose里面有些许的不一样,它是通过C<DEMOLISH()>方法实现的.
+
+
+=head2 Object instance
+
+一个对象是一个类的一个个体，比如猫是猫科动物的一个实例，老虎也是猫科动物的一个实例,一个mm是一个qq用户，一个大妈也是一个qq用户，所有的对象都从属于它们的类.
+
+一个实例有它们自己的属性和特征,比如我的英文名有first name和last name.
+
+在perl5的传统oop里面，我们只能通过bless一个hash引用或者一个数组引用来存储这些属性.这总是很繁琐的，而且在之后你还需要写一堆判断来验证这些属性，moose里面只需要简单的定义has方法来指定属性的类型，权限，默认值....这让一切都变得美好起来了。
+
+=head2 Moose vs old school summary
+
+=over 4
+
+=item * Class
+
+
+传统的perl5 oop一个类实际也就是一个bless过了的包，只不过是在包上面加了一个标签，让类里面的成员都能够共享一些属性和方法，但是Moose让这一切不再是这么简单,moose有着自己的定义机制和自省机制.
+
+=item * Attributes
+
+Moose的属性有读写访问方法，通过C<Class::Accessor>来实现，属性是需要特别说明的，不像方法那样我们只需要简单实现我们的code就可以了.实际上moose对象里面的方法和传统的perl对象方法没什么差别.
+
+=item * Method
+
+这个我就不说了，没啥大得区别.
+
+=item * Roles
+
+在Moose里面Role和Trait是很重要的特性,并且Role和Trait也是有自省机制的.这和Moose的类是一样的.
+
+=item * Method Modifiers
+
+Moose方法修改器可以改变符号表里面的内容，从而改变方法的内容，这在perl5里面是不可想象的，尽管我也能经常操作符号表，但是我依然觉得危险和麻烦，Moose在这方面至少比较官方.
+
+=item * Type
+
+通过Moose你可以指定你参数的类型，并且可以实现对参数的类型检测.
+
+=item * Delegation
+
+C<Class::Delegation>和C<Class::Delegator>也可以实现moose那样的委托功能，但是你可能需要自己手写更多的代码.
+Moose已经为你封装好了这些，你只需要声明你的handle映射就足够了.
+
+=item * Constructor
+
+传统的C<new()>方法和C<bless>操作再也不需要了.
+
+=item * Destructor
+
+A C<DESTROY()> method.
+
+在moose里面，垃圾回收叫做C<DEMOLISH>.
+
+=item * Object Instance
+
+perl5 oop里面，一个对象通常是一个hash引用.但是在Moose里面一个对象有自己的成员属性和方法.
+
+=item * Immutabilization
+
+Moose还有一个特性叫做"immutabilization",当你对你的class设置了immutabilization,Moose会为你的class性能进行优化加速.
+
+=back
+
+=head1 META WHAT?
+
+什么事metaclass，metaclass是一个描述类。通过对meta对象的请求你可以了解类的结构，属性，方法.有点类似python的docstring，但是我觉得更为强大.
+
+  my $meta = User->meta();
+
+  for my $attribute ( $meta->get_all_attributes ) {
+      print $attribute->name(), "\n";
+
+      if ( $attribute->has_type_constraint ) {
+          print "  type: ", $attribute->type_constraint->name, "\n";
+      }
+  }
+
+  for my $method ( $meta->get_all_methods ) {
+      print $method->name, "\n";
+  }
+
+几乎所有的信息我们都能得到.
+L<Moose::Meta::Class>, L<Moose::Meta::Attribute>,
+L<Moose::Meta::Method>, L<Moose::Meta::Role>,
+L<Moose::Meta::TypeConstraint>, L<Moose::Meta::Instance>
+
+=head1 AUTHOR
+
+Moose is maintained by the Moose Cabal, along with the help of many contributors. See L<Moose/CABAL> and L<Moose/CONTRIBUTORS> for details.
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2011 by Infinity Interactive, Inc..
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
+
+
+__END__
+
